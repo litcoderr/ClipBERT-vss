@@ -32,6 +32,7 @@ def save_training_meta(args):
     code_dir = dirname(dirname(dirname(os.path.realpath(__file__))))
     code_zip_filename = os.path.join(args.output_dir, "code.zip")
     LOGGER.info(f"Saving code from {code_dir} to {code_zip_filename}...")
+
     make_zipfile(code_dir, code_zip_filename,
                  enclosing_dir="code",
                  exclude_dirs_substring="results",
