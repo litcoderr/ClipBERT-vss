@@ -134,8 +134,8 @@ class VideoRetrievalCollator(object):
         v_collate = default_collate
         visual_inputs = v_collate([d["vid"] for d in batch])  # (B, T, 3, H, W)
         # group data
-        text_examples = flat_list_of_lists([d["examples"] for d in batch])
-        n_examples_list = [d["n_examples"] for d in batch]  # (B, )
+        text_examples = flat_list_of_lists([d["examples"] for d in batch])  # (sum(n_examples_list)) ex [{}, {}, ... {}]
+        n_examples_list = [d["n_examples"] for d in batch]  # (B, ) ex [2,2,2,2,2....,2]
         # group elements data
         # directly concatenate question and option as a single seq.
         text_str_list = [d["text_str"] for d in text_examples]  # (B, )
@@ -145,17 +145,17 @@ class VideoRetrievalCollator(object):
             pad_to_max_length=True,
             return_tensors="pt"
         )
-        text_input_ids = batch_enc.input_ids  # (B, L)
-        text_input_mask = batch_enc.attention_mask  # (B, L)
+        text_input_ids = batch_enc.input_ids  # (sum(n_examples_list), L)
+        text_input_mask = batch_enc.attention_mask  # (sum(n_examples_list), L)
 
         if "itm_label" in text_examples[0]:
             itm_labels = default_collate(
-                [d["itm_label"] for d in text_examples])  # (B, )
+                [d["itm_label"] for d in text_examples])  # (sum(n_examples_list), )
         else:
             itm_labels = None
 
         if "id" in text_examples[0]:
-            caption_ids = [d["id"] for d in text_examples]  # (B, )
+            caption_ids = [d["id"] for d in text_examples]  # (sum(n_examples_list), )
         else:
             caption_ids = None
         collated_batch = dict(
