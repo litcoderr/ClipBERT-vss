@@ -6,9 +6,7 @@ IMG_DIR=$2
 OUTPUT=$3
 PRETRAIN_DIR=$4
 
-if [ -z $CUDA_VISIBLE_DEVICES ]; then
-    CUDA_VISIBLE_DEVICES='all'
-fi
+CUDA_VISIBLE_DEVICES='6'
 
 docker run --gpus '"'device=$CUDA_VISIBLE_DEVICES'"' --ipc=host --rm -it \
     --mount src=$(pwd),dst=/clipbert,type=bind \

@@ -134,19 +134,19 @@ class VideoRetrievalCollator(object):
         v_collate = default_collate
         visual_inputs = v_collate([d["vid"] for d in batch])  # (B, T, 3, H, W)
         # group data
-        text_examples = flat_list_of_lists([d["examples"] for d in batch])
+        text_examples = flat_list_of_lists([d["examples"] for d in batch]) # [B * n_examples]
         n_examples_list = [d["n_examples"] for d in batch]  # (B, )
         # group elements data
         # directly concatenate question and option as a single seq.
-        text_str_list = [d["text_str"] for d in text_examples]  # (B, )
+        text_str_list = [d["text_str"] for d in text_examples]  #[B * n_examples]
         batch_enc = self.tokenizer.batch_encode_plus(
             text_str_list,
             max_length=self.max_length,
             pad_to_max_length=True,
             return_tensors="pt"
         )
-        text_input_ids = batch_enc.input_ids  # (B, L)
-        text_input_mask = batch_enc.attention_mask  # (B, L)
+        text_input_ids = batch_enc.input_ids  # (B * n_examples, L)
+        text_input_mask = batch_enc.attention_mask  # (B * n_examples, L)
 
         if "itm_label" in text_examples[0]:
             itm_labels = default_collate(
