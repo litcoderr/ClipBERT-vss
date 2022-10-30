@@ -4,12 +4,12 @@ import time
 import random
 import math
 from transformers import BertConfig, BertTokenizerFast
-from src.modeling.modeling import ClipBertForVideoTextRetrieval
+from src.modeling.modeling import OursForVideoTextRetrieval
 
-from src.modeling.e2e_model import ClipBert
+from src.modeling.e2e_model import Ours
 
-from src.datasets.dataset_video_retrieval import (
-    ClipBertVideoRetrievalDataset, VideoRetrievalCollator, ClipBertVideoRetrievalEvalDataset)
+from src.datasets.dataset_video_retrieval_ours import (
+    OursVideoRetrievalDataset, VideoRetrievalCollator, OursVideoRetrievalEvalDataset)
 from src.datasets.dataloader import InfiniteIterator, PrefetchLoader
 from src.datasets.data_utils import ImageNorm, mk_input_group
 from torch.utils.data import DataLoader
@@ -67,7 +67,7 @@ def mk_video_ret_datalist(raw_datalist, cfg):
     return datalist
 
 
-def mk_video_ret_dataloader(anno_path, lmdb_dir, cfg, tokenizer, is_train=True):
+def mk_video_ret_dataloader(anno_path, lmdb_dir, vss_dir, cfg, tokenizer, is_train=True):
     """"""
     raw_datalist = load_jsonl(anno_path)
     datalist = mk_video_ret_datalist(raw_datalist, cfg)
@@ -87,10 +87,11 @@ def mk_video_ret_dataloader(anno_path, lmdb_dir, cfg, tokenizer, is_train=True):
     frm_sampling_strategy = cfg.frm_sampling_strategy
     if not is_train and frm_sampling_strategy == "rand":
         frm_sampling_strategy = "middle"
-    dataset = ClipBertVideoRetrievalDataset(
+    dataset = OursVideoRetrievalDataset(
         datalist=group_datalist,
         tokenizer=tokenizer,
         img_lmdb_dir=lmdb_dir,
+        vss_dir=vss_dir,
         max_img_size=cfg.max_img_size,
         max_txt_len=cfg.max_txt_len,
         fps=cfg.fps,
@@ -121,7 +122,7 @@ def mk_video_ret_dataloader(anno_path, lmdb_dir, cfg, tokenizer, is_train=True):
     return dataloader
 
 
-def mk_video_ret_eval_dataloader(anno_path, lmdb_dir, cfg, tokenizer):
+def mk_video_ret_eval_dataloader(anno_path, lmdb_dir, vss_dir, cfg, tokenizer):
     """
     eval_retrieval: bool, will sample one video per batch paired with multiple text.
     Returns:
@@ -132,10 +133,11 @@ def mk_video_ret_eval_dataloader(anno_path, lmdb_dir, cfg, tokenizer):
     frm_sampling_strategy = cfg.frm_sampling_strategy
     if frm_sampling_strategy == "rand":
         frm_sampling_strategy = "middle"
-    dataset = ClipBertVideoRetrievalEvalDataset(
+    dataset = OursVideoRetrievalEvalDataset(
         datalist=datalist,
         tokenizer=tokenizer,
         img_lmdb_dir=lmdb_dir,
+        vss_dir=vss_dir,
         max_img_size=cfg.max_img_size,
         max_txt_len=cfg.max_txt_len,
         fps=cfg.fps,
@@ -155,8 +157,7 @@ def mk_video_ret_eval_dataloader(anno_path, lmdb_dir, cfg, tokenizer):
                             num_workers=cfg.n_workers,
                             pin_memory=cfg.pin_mem,
                             collate_fn=retrieval_collator.collate_batch)
-    img_norm = ImageNorm(mean=cfg.img_pixel_mean, std=cfg.img_pixel_std)
-    dataloader = PrefetchLoader(dataloader, img_norm)
+    dataloader = PrefetchLoader(dataloader)
     return dataloader
 
 
@@ -165,16 +166,17 @@ def setup_dataloaders(cfg, tokenizer):
     train_loader = mk_video_ret_dataloader(
         anno_path=cfg.train_datasets[0].txt,
         lmdb_dir=cfg.train_datasets[0].img,
+        vss_dir=cfg.train_datasets[0].vss,
         cfg=cfg, tokenizer=tokenizer, is_train=True
     )
     val_loader = mk_video_ret_dataloader(
         anno_path=cfg.val_datasets[0].txt,
         lmdb_dir=cfg.val_datasets[0].img,
+        vss_dir=cfg.val_datasets[0].vss,
         cfg=cfg, tokenizer=tokenizer, is_train=False
     )
-    img_norm = ImageNorm(mean=cfg.img_pixel_mean, std=cfg.img_pixel_std)
-    train_loader = PrefetchLoader(train_loader, img_norm)
-    val_loader = PrefetchLoader(val_loader, img_norm)
+    train_loader = PrefetchLoader(train_loader)
+    val_loader = PrefetchLoader(val_loader)
     return train_loader, val_loader
 
 
@@ -190,26 +192,19 @@ def setup_model(cfg, device=None):
     ]
     for k in add_attr_list:
         setattr(model_cfg, k, cfg[k])
-    transformer_model_cls = ClipBertForVideoTextRetrieval
 
     # we separate the CNN and the transformer in order to use different optimizer for each
     # transformer still has a CNN layer inside, used to down sample grid.
     LOGGER.info("setup e2e model")
-    model = ClipBert(
-        model_cfg, input_format=cfg.img_input_format,
-        detectron2_model_cfg=cfg.detectron2_model_cfg,
-        transformer_cls=transformer_model_cls)
+    model = Ours(model_cfg,
+                 transformer_cls=OursForVideoTextRetrieval)
     if cfg.e2e_weights_path:
         LOGGER.info(f"Loading e2e weights from {cfg.e2e_weights_path}")
         load_state_dict_with_mismatch(model, cfg.e2e_weights_path)
     else:
         LOGGER.info(f"Loading cnn weights from {cfg.detectron2_weights_path}")
         LOGGER.info(f"Loading bert weights from {cfg.bert_weights_path}")
-        model.load_separate_ckpt(
-            cnn_weights_path=cfg.detectron2_weights_path,
-            bert_weights_path=cfg.bert_weights_path)
-    if cfg.freeze_cnn:
-        model.freeze_cnn_backbone()
+        model.load_separate_ckpt(bert_weights_path=cfg.bert_weights_path)
     model.to(device)
 
     LOGGER.info("Setup model done!")
@@ -314,6 +309,7 @@ def start_training(cfg):
     eval_loader = mk_video_ret_eval_dataloader(
         anno_path=cfg.val_datasets[0].txt,
         lmdb_dir=cfg.val_datasets[0].img,
+        vss_dir=cfg.val_datasets[0].vss,
         cfg=cfg, tokenizer=tokenizer,
     )
 
@@ -338,10 +334,6 @@ def start_training(cfg):
     if hvd.rank() == 0:
         LOGGER.info("Saving training meta...")
         save_training_meta(cfg)
-        path = join(
-            cfg.output_dir, 'log', "detectron2_model_cfg.yaml")
-        with open(path, "w") as f:
-            f.write(model.cnn.config_file)
         LOGGER.info("Saving training done...")
         TB_LOGGER.create(join(cfg.output_dir, 'log'))
         pbar = tqdm(total=cfg.num_train_steps)
@@ -391,6 +383,7 @@ def start_training(cfg):
         # (B, T=num_clips*num_frm, C, H, W) --> (B, num_clips, num_frm, C, H, W)
         bsz = batch["visual_inputs"].shape[0]
         new_visual_shape = (bsz, num_clips, num_frm) + batch["visual_inputs"].shape[2:]
+        # visual_inputs shape: [b, num_clips, num_frm, D(768)]
         visual_inputs = batch["visual_inputs"].view(*new_visual_shape)
         logits = []
         for clip_idx in range(num_clips):
