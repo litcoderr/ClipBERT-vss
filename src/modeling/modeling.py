@@ -181,6 +181,11 @@ class OursBaseModel(BertPreTrainedModel):
         self.encoder = BertEncoder(config)
         self.pooler = BertPooler(config)
 
+        self.token_type_embeddings = nn.Embedding(1, config.hidden_size)
+        self.LayerNorm = BertLayerNorm(
+            config.hidden_size, eps=config.layer_norm_eps)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+
         self.init_weights()
 
     def get_input_embeddings(self):
@@ -196,11 +201,24 @@ class OursBaseModel(BertPreTrainedModel):
         """
         for layer, heads in heads_to_prune.items():
             self.encoder.layer[layer].attention.prune_heads(heads)
+    
+    def _visual_positional_embedding(self, n_seq, d_hidn):
+        def cal_angle(position, i_hidn):
+            return position / np.power(10000, 2 * (i_hidn // 2) / d_hidn)
+
+        def get_posi_angle_vec(position):
+            return [cal_angle(position, i_hidn) for i_hidn in range(d_hidn)]
+
+        sinusoid_table = np.array([get_posi_angle_vec(i_seq) for i_seq in range(n_seq)])
+        sinusoid_table[:, 0::2] = np.sin(sinusoid_table[:, 0::2])  # even index sin 
+        sinusoid_table[:, 1::2] = np.cos(sinusoid_table[:, 1::2])  # odd index cos
+
+        return sinusoid_table
 
     def forward(self, text_input_ids, visual_inputs, attention_mask):
         r"""Modified from BertModel
         text_input_ids: (B, Lt)
-        visual_inputs: (B, #frame, H, W, C)
+        visual_inputs: (B, #frame, D (768))
         attention_mask: (B, Lt)  with 1 indicates valid, 0 indicates invalid position.
         """
         input_shape = text_input_ids.size()
@@ -211,7 +229,20 @@ class OursBaseModel(BertPreTrainedModel):
 
         text_embedding_output = self.embeddings(
             input_ids=text_input_ids)  # (B, Lt, D)
-        visual_embedding_output = visual_inputs
+
+        # positional embedding
+        visual_positional_embedding = torch.tensor(self._visual_positional_embedding(n_seq=visual_inputs.shape[1],
+                                                                                     d_hidn=visual_inputs.shape[2])).to(device, dtype=torch.float16)
+
+        # toke type embedding
+        token_type_ids = torch.zeros(visual_inputs.shape[:2], dtype=torch.long, device=device)
+        token_type_embeddings = self.token_type_embeddings(token_type_ids).to(device=device, dtype=torch.float16)
+        
+        # add embeddings
+        visual_inputs = visual_inputs + visual_positional_embedding + token_type_embeddings
+        visual_inputs = self.LayerNorm(visual_inputs)
+        visual_embedding_output = self.dropout(visual_inputs)
+
         visual_attention_mask = attention_mask.new_ones(
             visual_embedding_output.shape[:2])  # (B, Lv)
         attention_mask = torch.cat(

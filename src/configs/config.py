@@ -126,7 +126,7 @@ class SharedConfigs(object):
             "--save_steps_ratio", default=0.01, type=float,
             help="save every 0.01*global steps to resume after preemption,"
                  "not used for checkpointing.")
-        parser.add_argument("--num_train_epochs", default=10, type=int,
+        parser.add_argument("--num_train_epochs", default=100, type=int,
                             help="Total #training epochs.")
         parser.add_argument("--optim", default="adamw",
                             choices=["adam", "adamax", "adamw"],
