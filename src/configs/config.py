@@ -116,6 +116,8 @@ class SharedConfigs(object):
                  "is train_batch_size * gradient_accumulation_steps for a single GPU.")
         parser.add_argument("--learning_rate", default=5e-5, type=float,
                             help="initial learning rate.")
+        parser.add_argument("--text_embedding_learning_rate", default=5e-6, type=float,
+                            help="initial learning rate for text embedding")
         parser.add_argument(
             "--num_valid", default=20, type=int,
             help="Run validation X times during training and checkpoint.")

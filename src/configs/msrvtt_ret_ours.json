@@ -37,6 +37,7 @@
     "min_valid_steps": 100,
     "num_valid": 100,
     "learning_rate": 5e-5,
+    "text_embedding_learning_rate": 5e-6,
     "weight_decay": 1e-3,
     "decay": "linear",
     "optim": "adamw",

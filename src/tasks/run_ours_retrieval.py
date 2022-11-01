@@ -437,6 +437,11 @@ def start_training(cfg):
                 cfg.num_train_steps, warmup_ratio=cfg.warmup_ratio,
                 decay_epochs=cfg.step_decay_epochs, multi_step_epoch=n_epoch)
 
+            lr_this_step_emb = get_lr_sched(
+                global_step, cfg.decay, cfg.text_embedding_learning_rate,
+                cfg.num_train_steps, warmup_ratio=cfg.warmup_ratio,
+                decay_epochs=cfg.step_decay_epochs, multi_step_epoch=n_epoch)
+
             # learning rate scheduling cnn
             lr_this_step_cnn = get_lr_sched(
                 global_step, cfg.cnn_lr_decay, cfg.cnn_learning_rate,
@@ -445,15 +450,18 @@ def start_training(cfg):
                 multi_step_epoch=n_epoch)
 
             # Hardcoded param group length
-            assert len(optimizer.param_groups) == 8
+            assert len(optimizer.param_groups) == 12
             for pg_n, param_group in enumerate(
                     optimizer.param_groups):
                 if pg_n in [0, 1]:
                     param_group['lr'] = (
-                        cfg.transformer_lr_mul * lr_this_step_transformer)
+                        cfg.transformer_lr_mul * lr_this_step_emb)
                 elif pg_n in [2, 3]:
-                    param_group['lr'] = lr_this_step_transformer
+                    param_group['lr'] = (
+                        cfg.transformer_lr_mul * lr_this_step_transformer)
                 elif pg_n in [4, 5]:
+                    param_group['lr'] = lr_this_step_transformer
+                elif pg_n in [6, 7]:
                     param_group['lr'] = (
                         cfg.cnn_lr_mul * lr_this_step_cnn)
                 else:
@@ -462,7 +470,7 @@ def start_training(cfg):
                 "train/lr_transformer", lr_this_step_transformer,
                 global_step)
             TB_LOGGER.add_scalar(
-                "train/lr_cnn", lr_this_step_cnn, global_step)
+                "train/lr_emb", lr_this_step_emb, global_step)
 
             TB_LOGGER.add_scalar('train/loss', running_loss.val, global_step)
 

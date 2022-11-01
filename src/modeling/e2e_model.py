@@ -3,7 +3,8 @@ from src.modeling.modeling import (
     ClipBertForSequenceClassification,
     ClipBertForMultipleChoice,
     ClipBertForRegression,
-    OursForVideoTextRetrieval)
+    OursForVideoTextRetrieval,
+    ClipBertForVideoTextRetrieval)
 from src.modeling.grid_feat import GridFeatBackbone
 from torch import nn
 from src.datasets.data_utils import repeat_tensor_rows
