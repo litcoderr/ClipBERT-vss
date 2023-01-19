@@ -1,13 +1,13 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT license.
 
-TXT_DB=$1
-IMG_DIR=$2
-OUTPUT=$3
-PRETRAIN_DIR=$4
+TXT_DB=/media/user/data2/STAR/STAR
+IMG_DIR=/media/user/data2/STAR/STAR
+OUTPUT=/home/ycji/project/ClipBERT-vss/output
+PRETRAIN_DIR=/home/ycji/project/ClipBERT-vss/pretrained/pretrained
 
 if [ -z $CUDA_VISIBLE_DEVICES ]; then
-    CUDA_VISIBLE_DEVICES='all'
+    CUDA_VISIBLE_DEVICES='1'
 fi
 
 docker run --gpus '"'device=$CUDA_VISIBLE_DEVICES'"' --ipc=host --rm -it \
@@ -17,6 +17,6 @@ docker run --gpus '"'device=$CUDA_VISIBLE_DEVICES'"' --ipc=host --rm -it \
     --mount src=$TXT_DB,dst=/txt,type=bind,readonly \
     --mount src=$IMG_DIR,dst=/img,type=bind,readonly \
     -e NVIDIA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES \
-    -w /clipbert jayleicn/clipbert:latest \
+    -w /clipbert clipbert:latest \
     bash -c "source /clipbert/setup.sh && bash" \
 

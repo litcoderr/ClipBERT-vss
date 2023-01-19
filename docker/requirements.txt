@@ -6,7 +6,7 @@ lmdb==0.97
 msgpack-numpy
 msgpack
 toolz
-transformers==2.11.0
+transformers
 tensorboard
 ffmpeg-python
 tqdm
@@ -15,3 +15,4 @@ pycocotools>=2.0.1
 opencv-python
 tensorboardX==2.0
 av==8.0.2
+lightning

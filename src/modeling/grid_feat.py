@@ -10,7 +10,6 @@ import torch
 from torch import nn
 from src.modeling.grid_feats import add_attribute_config
 import os
-import horovod.torch as hvd
 
 
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1,
@@ -55,7 +54,6 @@ class GridFeatBackbone(nn.Module):
         """
         Create configs and perform basic setups.
         """
-        rank = hvd.rank()
         detectron2_cfg = get_cfg()
         add_attribute_config(detectron2_cfg)
         detectron2_cfg.merge_from_file(config_file)
@@ -65,8 +63,8 @@ class GridFeatBackbone(nn.Module):
         detectron2_cfg.MODEL.DEVICE = f'cpu'
         detectron2_cfg.freeze()
 
-        setup_logger(None, distributed_rank=rank, name="fvcore")
-        logger = setup_logger(None, distributed_rank=rank)
+        setup_logger(None, name="fvcore")
+        logger = setup_logger(None)
         return detectron2_cfg
 
     def load_state_dict(self, model_path):

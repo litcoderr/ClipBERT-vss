@@ -54,3 +54,6 @@ tmp*.py
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+pretrained
+output
