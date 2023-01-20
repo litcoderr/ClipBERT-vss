@@ -88,15 +88,12 @@ def load_state_dict_with_mismatch(model, loaded_state_dict_or_path):
             else:
                 toload[k] = loaded_state_dict[k]
 
-    LOGGER.info("You can ignore the keys with `num_batches_tracked` or from task heads")
-    LOGGER.info("Keys in loaded but not in model:")
     diff_keys = load_keys.difference(model_keys)
-    LOGGER.info(f"In total {len(diff_keys)}, {sorted(diff_keys)}")
-    LOGGER.info("Keys in model but not in loaded:")
+    LOGGER.info(f"Keys in loaded but not in model: {len(diff_keys)}")
     diff_keys = model_keys.difference(load_keys)
-    LOGGER.info(f"In total {len(diff_keys)}, {sorted(diff_keys)}")
-    LOGGER.info("Keys in model and loaded, but shape mismatched:")
-    LOGGER.info(f"In total {len(mismatched_shape_keys)}, {sorted(mismatched_shape_keys)}")
+    LOGGER.info(f"Keys in model but not in loaded: {len(diff_keys)}")
+    LOGGER.info(f"Keys in model and loaded, but shape mismatched: {len(mismatched_shape_keys)}")
+
     model.load_state_dict(toload, strict=False)
 
 

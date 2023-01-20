@@ -7,7 +7,7 @@ OUTPUT=/home/ycji/project/ClipBERT-vss/output
 PRETRAIN_DIR=/home/ycji/project/ClipBERT-vss/pretrained/pretrained
 
 if [ -z $CUDA_VISIBLE_DEVICES ]; then
-    CUDA_VISIBLE_DEVICES='1'
+    CUDA_VISIBLE_DEVICES='0'
 fi
 
 docker run --gpus '"'device=$CUDA_VISIBLE_DEVICES'"' --ipc=host --rm -it \

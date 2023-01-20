@@ -48,3 +48,20 @@ class ClipBert(nn.Module):
     def freeze_cnn_backbone(self):
         for n, p in self.cnn.feature.named_parameters():
             p.requires_grad = False
+
+class ClipBertforStar(ClipBert):
+    def __init__(self, config, input_format="BGR",
+                 detectron2_model_cfg=None,
+                 transformer_cls=ClipBertForPreTraining):
+        super(ClipBertforStar, self).__init__(config, input_format, 
+                                              detectron2_model_cfg, transformer_cls)
+    
+    def forward(self, x):
+        token_id = x["token_id"]  # [b*4, n_token(30)]
+        token_mask = x["token_mask"]  # [b*4, n_token(30)]
+        frame = x["frame"]  # [b*4, n_frame, c, h, w]
+
+        # get visual feature
+        # [b*4, n_frame, h(7), w(7), c(768)]
+        visual_feat = self.cnn(frame)
+        return x

@@ -216,6 +216,7 @@ class SharedConfigs(object):
                                  "uniformly sample N clips, each clips num_frm frames.")
 
         # device parameters
+        parser.add_argument("--device", type=str, default="cuda")
         parser.add_argument("--seed", type=int, default=42,
                             help="random seed for initialization")
         parser.add_argument(
